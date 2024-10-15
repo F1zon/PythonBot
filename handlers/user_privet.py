@@ -4,17 +4,22 @@ from aiogram.types import Message
 from datetime import date
 import datetime
 from collections import defaultdict
+import sqlite3 as sq
 
 user_private_router = Router()
 
 event = defaultdict(list)
-desc = ''
 tmp = []
-i = []
 
 @user_private_router.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
-  await message.answer(f"Hello, {html.bold(message.from_user.full_name)}!")
+    await message.answer(f"Hello, {html.bold(message.from_user.full_name)}!")
+    db = sq.connect('tg.db')
+    cur = db.cursor()
+    # TODO: Испраить ввод данных в бд
+    cur.execute(''' INSERT INTO users(chat_id) VALUES(?) ''', str(message.from_user.id))
+    db.commit()
+    db.close()
 
 
 @user_private_router.message(Command('see_date_now'))

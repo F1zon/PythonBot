@@ -11,6 +11,7 @@ from aiogram.types import Message
 from config import TOKEN
 from handlers.user_privet import user_private_router
 from common.bot_cmds_list import private
+from handlers import db
 
 ALLOWED_UPDATES = ['message, edited_message']
 # Bot token can be obtained via https://t.me/BotFather
@@ -19,6 +20,7 @@ dp.include_router(user_private_router)
 
 async def main() -> None:
   bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+  await db.db_start()
   await bot.set_my_commands(commands=private, scope=types.BotCommandScopeAllPrivateChats())
   await dp.start_polling(bot, allowed_updates=ALLOWED_UPDATES)
 
