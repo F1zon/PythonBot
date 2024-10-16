@@ -1,6 +1,10 @@
 from aiogram import html, Router, types, F
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.types import Message
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import default_state, State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage
+
 from datetime import date
 import datetime
 from collections import defaultdict
@@ -9,7 +13,12 @@ import string
 import logging
 
 user_private_router = Router()
-tmp = []
+tmp = {}
+
+class FSMFillForm(StatesGroup):
+    fill_date = State()
+    fill_desc = State()
+
 
 @user_private_router.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
@@ -46,6 +55,7 @@ async def seeYesterday(message: types.Message) -> None:
     for i in descList:
         await message.answer(getStr(i))
 
+
 @user_private_router.message(Command('see_date_tomorrow'))
 async def seeTomorrow(message: types.Message):
     today = datetime.date.today()
@@ -60,36 +70,79 @@ async def seeTomorrow(message: types.Message):
     for i in descList:
         await message.answer(getStr(i))
 
+
 @user_private_router.message(Command('see_date_by_date'))
-async def seeByDate(message: types.Message):
-    await message.answer("Введите дату формата гггг-мм-дд")
+async def seeByDate(message: types.Message, state: FSMContext):
+    await message.answer("Введите дату формата ГГГГ-ММ-ДД")
+    await state.set_state(FSMFillForm.fill_date)
+
+
+@user_private_router.message(StateFilter(FSMFillForm.fill_date))
+async def getDateByEv(message: types.Message, state: FSMContext):
+    await state.update_data(dates=message.text)
+    tmp = await state.get_data()
+    await state.clear()
+
+    datus = tmp.get('dates')
+    tmp.clear()
+
+    descList = getDescForDate(datus, str(message.from_user.id))
+    if len(descList) < 0:
+        await message.answer(f"Событий по дате {datus} нет!")
+        return
+    
+    await message.answer(f"События по дате {datus}:")
+    for i in descList:
+        await message.answer(getStr(i))
 
 @user_private_router.message(Command('add_date'))
-async def getEvent(message: types.Message):
-    await message.answer("Введите данные: гггг-мм-дд / описание")
+async def getEvent(message: types.Message, state: FSMContext):
+    await message.answer("Введите данные: ГГГГ-ММ-ДД")
+    await state.set_state(FSMFillForm.fill_date)
 
 
-@user_private_router.message(F.text.lower())
-async def getMessageInEvent(message: types.Message):
-    tmp = message.text.split(" / ")
+@user_private_router.message(StateFilter(FSMFillForm.fill_date))
+async def setDescEvent(message: types.Message, state: FSMContext):
+    await state.update_data(dates=message.text)
+    await message.answer("Введите название события")
+    await state.set_state(FSMFillForm.fill_desc)
 
-    # Просмотр событий по дате
-    if len(tmp) < 2:
-        descList = getDescForDate(tmp[0], str(message.from_user.id))
-        if len(descList) < 0:
-            await message.answer("Событий по указанной дате нет!")
-            return
 
-        await message.answer(f"События по дате {tmp[0]}:")
-        for i in descList:
-            await message.answer(getStr(i))
-        return
+@user_private_router.message(StateFilter(FSMFillForm.fill_desc))
+async def setInfo(message: types.Message, state: FSMContext):
+    await state.update_data(desc=message.text)
+    tmp = await state.get_data()
+    await state.clear()
+    await message.answer("Спасибо, Данные введены!")
 
-    addDate(tmp[0], tmp[1], str(message.from_user.id))
-    logging.info(len(tmp))
+    addDate(tmp.get('dates'), tmp.get('desc'), str(message.from_user.id))
+    await message.answer("Введённые данные")
+    await message.answer(f"Дата = {tmp.get('dates')}")
+    await message.answer(f"Событие = {tmp.get('desc')}")
+    tmp.clear()
 
-    await message.answer(f"Введённая дата: {tmp[0]}\nВведённое описание: {tmp[1]}")
-    tmp = {}
+
+# @user_private_router.message(F.text.lower())
+# async def getMessageInEvent(message: types.Message):
+#     tmp = message.text.split(" / ")
+
+#     # Просмотр событий по дате
+#     if len(tmp) < 2:
+#         descList = getDescForDate(tmp[0], str(message.from_user.id))
+#         if len(descList) < 0:
+#             await message.answer("Событий по указанной дате нет!")
+#             return
+
+#         await message.answer(f"События по дате {tmp[0]}:")
+#         for i in descList:
+#             await message.answer(getStr(i))
+#         return
+
+#     addDate(tmp[0], tmp[1], str(message.from_user.id))
+#     logging.info(len(tmp))
+
+#     await message.answer(f"Введённая дата: {tmp[0]}\nВведённое описание: {tmp[1]}")
+#     tmp = {}
 
 
 def getUser(chatId):
