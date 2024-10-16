@@ -18,6 +18,7 @@ tmp = {}
 class FSMFillForm(StatesGroup):
     fill_date = State()
     fill_desc = State()
+    fill_dateToDate = State()
 
 
 @user_private_router.message(CommandStart())
@@ -46,7 +47,7 @@ async def command_start_handler(message: Message) -> None:
 
 @user_private_router.message(Command('see_date_now'))
 async def seeYesterday(message: types.Message) -> None:
-    descList = getDescForDate(str(date.today()), str(message.from_user.id))
+    descList = getDescForDate(getDateYesterday(), str(message.from_user.id))
     if len(descList) < 0:
         await message.answer("Событий на сегодня нет!")
         return
@@ -58,10 +59,7 @@ async def seeYesterday(message: types.Message) -> None:
 
 @user_private_router.message(Command('see_date_tomorrow'))
 async def seeTomorrow(message: types.Message):
-    today = datetime.date.today()
-    tomorrow = str(today + datetime.timedelta(days=1))
-
-    descList = getDescForDate(tomorrow, str(message.from_user.id))
+    descList = getDescForDate(getDateTomorrow(), str(message.from_user.id))
     if len(descList) < 0:
         await message.answer("Событий на завтра нет!")
         return
@@ -97,11 +95,12 @@ async def getDateByEv(message: types.Message, state: FSMContext):
 
 @user_private_router.message(Command('add_date'))
 async def getEvent(message: types.Message, state: FSMContext):
-    await message.answer("Введите данные: ГГГГ-ММ-ДД")
-    await state.set_state(FSMFillForm.fill_date)
+    # await message.answer("Введите данные: ГГГГ-ММ-ДД")
+    await message.answer("Введите данные: ДД.ММ.ГГГГ")
+    await state.set_state(FSMFillForm.fill_dateToDate)
 
 
-@user_private_router.message(StateFilter(FSMFillForm.fill_date))
+@user_private_router.message(StateFilter(FSMFillForm.fill_dateToDate))
 async def setDescEvent(message: types.Message, state: FSMContext):
     await state.update_data(dates=message.text)
     await message.answer("Введите название события")
@@ -120,29 +119,6 @@ async def setInfo(message: types.Message, state: FSMContext):
     await message.answer(f"Дата = {tmp.get('dates')}")
     await message.answer(f"Событие = {tmp.get('desc')}")
     tmp.clear()
-
-
-# @user_private_router.message(F.text.lower())
-# async def getMessageInEvent(message: types.Message):
-#     tmp = message.text.split(" / ")
-
-#     # Просмотр событий по дате
-#     if len(tmp) < 2:
-#         descList = getDescForDate(tmp[0], str(message.from_user.id))
-#         if len(descList) < 0:
-#             await message.answer("Событий по указанной дате нет!")
-#             return
-
-#         await message.answer(f"События по дате {tmp[0]}:")
-#         for i in descList:
-#             await message.answer(getStr(i))
-#         return
-
-#     addDate(tmp[0], tmp[1], str(message.from_user.id))
-#     logging.info(len(tmp))
-
-#     await message.answer(f"Введённая дата: {tmp[0]}\nВведённое описание: {tmp[1]}")
-#     tmp = {}
 
 
 def getUser(chatId):
@@ -180,3 +156,20 @@ def getDescForDate(dates, chatId):
     db.close()
 
     return descs
+
+
+def getDateYesterday():
+    datusArr = str(date.today()).split("-")
+    result = f"{datusArr[2]}.{datusArr[1]}.{datusArr[0]}"
+
+    return result
+
+
+def getDateTomorrow():
+    today = datetime.date.today()
+    tomorrow = str(today + datetime.timedelta(days=1))
+
+    datusArr = tomorrow.split("-")
+    result = f"{datusArr[2]}.{datusArr[1]}.{datusArr[0]}"
+
+    return result
