@@ -13,6 +13,6 @@ async def db_start():
     cur.execute("CREATE TABLE IF NOT EXISTS events("
                 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                 "desc TEXT,"
-                "dates INTEGER,"
-                "chat_id INTEGER)")
+                "dates TEXT,"
+                "chat_id TEXT)")
     db.commit()
